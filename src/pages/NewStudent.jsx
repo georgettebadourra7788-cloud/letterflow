@@ -4,9 +4,9 @@ import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import UpgradeNotice from '../components/UpgradeNotice';
 import { useAuth } from '../context/AuthContext';
-import { createStudent, deleteStudent, getStudent, updateStudent, watchProfile, watchStudents } from '../lib/firestore';
+import { createStudent, deleteStudent, getStudent, updateStudent, watchProfile } from '../lib/firestore';
 import { titleCaseName } from '../lib/textFormat';
-import { isAtMonthlyLimit } from '../lib/limits';
+import { isAtLifetimeLimit } from '../lib/limits';
 import { GENDERS } from '../lib/pronouns';
 
 const emptyStudent = {
@@ -30,9 +30,8 @@ export default function NewStudent() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
 
-  // Free-plan monthly limit check — only relevant when creating a new student.
+  // Free-plan lifetime limit check — only relevant when creating a new student.
   const [profile, setProfile] = useState(null);
-  const [existingStudents, setExistingStudents] = useState(null);
 
   useEffect(() => {
     if (!isEditing || !user) return;
@@ -44,16 +43,11 @@ export default function NewStudent() {
 
   useEffect(() => {
     if (isEditing || !user) return;
-    const unsubProfile = watchProfile(user.uid, setProfile);
-    const unsubStudents = watchStudents(user.uid, setExistingStudents);
-    return () => {
-      unsubProfile();
-      unsubStudents();
-    };
+    return watchProfile(user.uid, setProfile);
   }, [isEditing, user]);
 
-  const limitCheckLoading = !isEditing && (profile === null || existingStudents === null);
-  const limitReached = !isEditing && !limitCheckLoading && isAtMonthlyLimit(profile, existingStudents, 'students');
+  const limitCheckLoading = !isEditing && profile === null;
+  const limitReached = !isEditing && !limitCheckLoading && isAtLifetimeLimit(profile, 'students');
 
   function updateField(field, value) {
     setStudent((prev) => ({ ...prev, [field]: value }));

@@ -4,9 +4,9 @@ import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import UpgradeNotice from '../components/UpgradeNotice';
 import { useAuth } from '../context/AuthContext';
-import { createLetter, watchLetters, watchProfile, watchStudents } from '../lib/firestore';
+import { createLetter, watchProfile, watchStudents } from '../lib/firestore';
 import { assembleLetter, PURPOSES, TONES } from '../lib/templates';
-import { isAtMonthlyLimit } from '../lib/limits';
+import { isAtLifetimeLimit } from '../lib/limits';
 
 const PURPOSE_ICONS = {
   gradSchool: 'school',
@@ -26,7 +26,6 @@ export default function NewLetterRequest() {
   const [creating, setCreating] = useState(false);
 
   const [profile, setProfile] = useState(null);
-  const [existingLetters, setExistingLetters] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -46,17 +45,12 @@ export default function NewLetterRequest() {
 
   useEffect(() => {
     if (!user) return;
-    const unsubProfile = watchProfile(user.uid, setProfile);
-    const unsubLetters = watchLetters(user.uid, setExistingLetters);
-    return () => {
-      unsubProfile();
-      unsubLetters();
-    };
+    return watchProfile(user.uid, setProfile);
   }, [user]);
 
   const selectedStudent = students.find((s) => s.id === studentId);
-  const limitCheckLoading = profile === null || existingLetters === null;
-  const limitReached = !limitCheckLoading && isAtMonthlyLimit(profile, existingLetters, 'letters');
+  const limitCheckLoading = profile === null;
+  const limitReached = !limitCheckLoading && isAtLifetimeLimit(profile, 'letters');
 
   async function handleGenerate() {
     if (!selectedStudent) return;

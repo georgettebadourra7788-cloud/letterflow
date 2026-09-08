@@ -183,7 +183,7 @@ export default function Settings() {
               <span className="font-body-sm text-body-sm text-on-surface-variant">
                 {profile.plan === 'paid'
                   ? 'Unlimited students & letters, custom letterhead.'
-                  : 'Up to 3 students and 3 letters per calendar month.'}
+                  : 'Up to 3 students and 3 letters total.'}
               </span>
             </div>
             <span

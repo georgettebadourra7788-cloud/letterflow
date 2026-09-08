@@ -1,15 +1,16 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDoc,
+  increment,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -43,11 +44,17 @@ export async function getStudent(uid, studentId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export function createStudent(uid, student) {
-  return addDoc(studentsRef(uid), {
-    ...student,
-    createdAt: serverTimestamp(),
-  });
+// Creates the student and bumps the user's lifetime totalStudentsCreated
+// counter in the same atomic batch. That counter — not the live count of
+// (non-deleted) students — is what free-plan limits are enforced against,
+// so deleting a student to free up a slot never restores quota.
+export async function createStudent(uid, student) {
+  const batch = writeBatch(db);
+  const studentRef = doc(studentsRef(uid));
+  batch.set(studentRef, { ...student, createdAt: serverTimestamp() });
+  batch.update(doc(db, 'users', uid), { totalStudentsCreated: increment(1) });
+  await batch.commit();
+  return studentRef.id;
 }
 
 export function updateStudent(uid, studentId, student) {
@@ -76,13 +83,14 @@ export async function getLetter(uid, letterId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
+// Same lifetime-counter pattern as createStudent — see comment there.
 export async function createLetter(uid, letter) {
-  const docRef = await addDoc(lettersRef(uid), {
-    ...letter,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return docRef.id;
+  const batch = writeBatch(db);
+  const letterRef = doc(lettersRef(uid));
+  batch.set(letterRef, { ...letter, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  batch.update(doc(db, 'users', uid), { totalLettersGenerated: increment(1) });
+  await batch.commit();
+  return letterRef.id;
 }
 
 export function updateLetter(uid, letterId, letter) {

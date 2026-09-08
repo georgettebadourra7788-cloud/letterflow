@@ -6,7 +6,7 @@ Stack: React + Vite, Firebase (Auth + Firestore + Hosting), Tailwind CSS.
 
 ## Data model
 
-- `users/{uid}` — faculty profile: `name`, `email`, `institution`, `title`, `letterheadText`, `signatureName`, `plan` (`free` | `paid`, defaults to `free`)
+- `users/{uid}` — faculty profile: `name`, `email`, `institution`, `title`, `letterheadText`, `signatureName`, `plan` (`free` | `paid`, defaults to `free`), `totalStudentsCreated`, `totalLettersGenerated` (lifetime counters, see below)
 - `users/{uid}/students/{studentId}` — `name`, `program`, `grade`, `relationship`, `gender` (`he` | `she` | `they`, defaults to `they`), `achievements[]`, `notes`, `createdAt`
 - `users/{uid}/letters/{letterId}` — `studentId`, `purpose` (`gradSchool` | `job` | `scholarship` | `visa`), `tone` (`formal` | `warm` | `concise`), `deadline`, `status` (`draft` | `sent` | `submitted`), `draftText`, `createdAt`, `updatedAt`
 
@@ -16,7 +16,7 @@ Template assembly logic (no AI) lives in `src/lib/templates.js`: each purpose ma
 
 ## Freemium plan
 
-New users default to `plan: 'free'`, capped at 3 students and 3 letters created per calendar month (`src/lib/limits.js`). Hitting either cap replaces the New Student / New Letter Request form with an upgrade notice pointing to a manual-upgrade email (`src/lib/config.js`, `UPGRADE_EMAIL`). There's no payment integration — flip `plan` to `'paid'` by hand in the Firestore console to lift the limits for a user.
+New users default to `plan: 'free'`, capped at 3 students and 3 letters **ever** (`src/lib/limits.js`). This is enforced against lifetime counters — `users/{uid}.totalStudentsCreated` / `totalLettersGenerated` — which `createStudent`/`createLetter` increment atomically (same Firestore batch as the create) and which deleting a student or letter never decrements. That's deliberate: deleting tidies up the dashboard but does not free up a new slot. Hitting either cap replaces the New Student / New Letter Request form with an upgrade notice pointing to a manual-upgrade email (`src/lib/config.js`, `UPGRADE_EMAIL`). There's no payment integration — flip `plan` to `'paid'` by hand in the Firestore console to lift the limits for a user.
 
 ## Local setup
 
@@ -62,3 +62,21 @@ firebase deploy --only hosting
 5. Letter Editor — edit the assembled draft, save, change status
 6. Export — letterhead preview, download as `.docx` or print to PDF
 7. Settings — letterhead text and signature name, used in exports
+
+## End-to-end testing (Firebase emulators + Playwright)
+
+`e2e-test.mjs` and `e2e-test-quota.mjs` drive the real app in a real browser against the local Firebase emulator suite — no cloud project or credentials needed. Useful for verifying anything touching Auth/Firestore state (e.g. the student selector, freemium limits) actually works, not just that the code reads correctly.
+
+```sh
+# terminal 1 — emulators (Auth :9099, Firestore :8080, UI :4000)
+npx firebase-tools emulators:start --project demo-letterflow
+
+# terminal 2 — dev server pointed at the emulators
+echo "VITE_USE_EMULATORS=true" > .env.local && npm run dev -- --port 5175
+
+# terminal 3
+node e2e-test.mjs        # student selector + draft-content correctness
+node e2e-test-quota.mjs  # free-plan lifetime limit + anti-bypass-by-delete
+```
+
+Screenshots are written to `/tmp/e2e-shots/`. `VITE_USE_EMULATORS` only takes effect when explicitly set to `'true'` — it never activates in a normal `npm run build`/production deploy.
