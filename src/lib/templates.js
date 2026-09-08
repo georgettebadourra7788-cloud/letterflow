@@ -3,6 +3,7 @@
 // blocks, and each block is a pure function of the student (and tone).
 
 import { fixNumberAgreement, titleCaseName } from './textFormat';
+import { capitalize, getPronouns } from './pronouns';
 
 export const PURPOSES = [
   { value: 'gradSchool', label: 'Grad School' },
@@ -50,20 +51,22 @@ const blocks = {
   // observation period, and (if on file) the grade record.
   relationship: (s) => {
     const courseContext = s.program
-      ? `Over that time, I observed ${s.name}'s work closely in ${s.program}, which gave me direct insight into their abilities both in and outside the classroom.`
-      : `Over that time, I observed ${s.name}'s work closely, which gave me direct insight into their abilities.`;
+      ? `Over that time, I observed ${s.name}'s work closely in ${s.program}, which gave me direct insight into ${s.pronouns.possessive} abilities both in and outside the classroom.`
+      : `Over that time, I observed ${s.name}'s work closely, which gave me direct insight into ${s.pronouns.possessive} abilities.`;
     const gradeLine = s.grade ? ` ${s.name} maintained a grade record of ${s.grade} throughout this period.` : '';
     return `${courseContext}${gradeLine}`;
   },
 
   academicPotential: (s) =>
-    `${s.name} has consistently demonstrated the intellectual curiosity and academic discipline that graduate study demands. Their performance in ${s.program || 'their coursework'} reflects a readiness to undertake independent research and to contribute meaningfully to a graduate program.`,
+    `${s.name} has consistently demonstrated the intellectual curiosity and academic discipline that graduate study demands. ${capitalize(s.pronouns.possessive)} performance in ${s.program || `${s.pronouns.possessive} coursework`} reflects a readiness to undertake independent research and to contribute meaningfully to a graduate program.`,
 
   skillsFit: (s) =>
-    `${s.name} combines strong technical and analytical skills with a demonstrated ability to apply them in practical settings. I am confident these abilities, developed through ${s.program || 'their studies'}, translate directly to success in a professional environment.`,
+    `${s.name} combines strong technical and analytical skills with a demonstrated ability to apply them in practical settings. I am confident these abilities, developed through ${s.program || `${s.pronouns.possessive} studies`}, translate directly to success in a professional environment.`,
 
+  // Confirms standing for the reviewing agency without restating the
+  // relationship phrase — that's already covered once, in the opening.
   durationVerification: (s) =>
-    `This letter confirms that I have supervised or instructed ${s.name} as ${s.relationship}. I am glad to verify their standing and achievements on request from the reviewing agency, and can provide any additional documentation required to support their application.`,
+    `I am glad to formally verify ${s.name}'s standing and achievements on request from the reviewing agency, and can provide any additional documentation required to support ${s.pronouns.possessive} application.`,
 
   strengths: (s) => {
     const list = achievementsList(s);
@@ -85,12 +88,15 @@ export const purposeTemplates = {
 // Safeguards the student's name and relationship text right before assembly,
 // so every block (including the tone-specific opening/closing) sees the
 // normalized values — this is a fallback in case a student record was
-// created before the intake form started title-casing names.
+// created before the intake form started title-casing names. Also resolves
+// the gender field (defaulting to 'they') into a pronoun set every block
+// can use via s.pronouns instead of a hardcoded "their".
 function normalizeForTemplate(student) {
   return {
     ...student,
     name: titleCaseName(student.name),
     relationship: fixNumberAgreement(student.relationship),
+    pronouns: getPronouns(student.gender),
   };
 }
 

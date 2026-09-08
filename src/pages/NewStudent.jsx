@@ -7,12 +7,14 @@ import { useAuth } from '../context/AuthContext';
 import { createStudent, deleteStudent, getStudent, updateStudent, watchProfile, watchStudents } from '../lib/firestore';
 import { titleCaseName } from '../lib/textFormat';
 import { isAtMonthlyLimit } from '../lib/limits';
+import { GENDERS } from '../lib/pronouns';
 
 const emptyStudent = {
   name: '',
   program: '',
   grade: '',
   relationship: '',
+  gender: 'they',
   achievements: [],
   notes: '',
 };
@@ -35,7 +37,7 @@ export default function NewStudent() {
   useEffect(() => {
     if (!isEditing || !user) return;
     getStudent(user.uid, studentId).then((data) => {
-      if (data) setStudent(data);
+      if (data) setStudent({ ...emptyStudent, ...data });
       setLoading(false);
     });
   }, [isEditing, studentId, user]);
@@ -73,7 +75,7 @@ export default function NewStudent() {
     if (!student.name.trim()) return;
     setSaving(true);
     try {
-      const payload = { ...student, name: titleCaseName(student.name.trim()) };
+      const payload = { ...student, name: titleCaseName(student.name.trim()), gender: student.gender || 'they' };
       if (isEditing) {
         await updateStudent(user.uid, studentId, payload);
       } else {
@@ -181,6 +183,31 @@ export default function NewStudent() {
             </div>
             <p className="font-label-sm text-label-sm text-on-surface-variant ml-1">
               Used directly in the letter opening — describe how you know this student.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="font-label-lg text-label-lg text-on-surface" htmlFor="gender">
+              Pronouns
+            </label>
+            <div className="relative flex items-center">
+              <Icon name="badge" className="absolute left-3 text-on-surface-variant text-[20px] pointer-events-none" />
+              <select
+                id="gender"
+                value={student.gender || 'they'}
+                onChange={(e) => updateField('gender', e.target.value)}
+                className="w-full h-[42px] bg-surface-container-low pl-10 pr-3 rounded font-body-md text-body-md outline-none focus:bg-surface-container transition-colors appearance-none"
+              >
+                {GENDERS.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
+              <Icon name="arrow_drop_down" className="absolute right-3 text-on-surface-variant text-[20px] pointer-events-none" />
+            </div>
+            <p className="font-label-sm text-label-sm text-on-surface-variant ml-1">
+              Used for pronouns in the generated letter. Defaults to They/Them.
             </p>
           </div>
 

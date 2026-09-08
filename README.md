@@ -7,7 +7,7 @@ Stack: React + Vite, Firebase (Auth + Firestore + Hosting), Tailwind CSS.
 ## Data model
 
 - `users/{uid}` — faculty profile: `name`, `email`, `institution`, `title`, `letterheadText`, `signatureName`, `plan` (`free` | `paid`, defaults to `free`)
-- `users/{uid}/students/{studentId}` — `name`, `program`, `grade`, `relationship`, `achievements[]`, `notes`, `createdAt`
+- `users/{uid}/students/{studentId}` — `name`, `program`, `grade`, `relationship`, `gender` (`he` | `she` | `they`, defaults to `they`), `achievements[]`, `notes`, `createdAt`
 - `users/{uid}/letters/{letterId}` — `studentId`, `purpose` (`gradSchool` | `job` | `scholarship` | `visa`), `tone` (`formal` | `warm` | `concise`), `deadline`, `status` (`draft` | `sent` | `submitted`), `draftText`, `createdAt`, `updatedAt`
 
 Every subcollection is scoped under the faculty member's own `uid`; Firestore rules (`firestore.rules`) only allow a signed-in user to read/write their own documents.
