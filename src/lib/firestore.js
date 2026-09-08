@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getCountFromServer,
   getDoc,
   increment,
   onSnapshot,
@@ -102,4 +103,44 @@ export function updateLetter(uid, letterId, letter) {
 
 export function deleteLetter(uid, letterId) {
   return deleteDoc(doc(db, 'users', uid, 'letters', letterId));
+}
+
+// ---- lifetime-counter reconciliation ----
+//
+// createStudent/createLetter increment totalStudentsCreated /
+// totalLettersGenerated atomically with the document create, so a mismatch
+// shouldn't be possible going forward. But a counter can still legitimately
+// end up behind the real document count — most notably, any student/letter
+// created before this counter existed (i.e. before it started being
+// written) never incremented anything. Rather than requiring a one-off
+// manual migration, this recomputes the true count straight from the
+// subcollections (a cheap COUNT aggregation query, not a full document
+// read) and — only ever upward, since deletes must not restore quota —
+// repairs the stored counter if it's behind. Safe to call on every visit
+// to a free-plan gate; it's a no-op once the counter has caught up.
+export async function reconcileUsageCounters(uid) {
+  const userRef = doc(db, 'users', uid);
+  const [profileSnap, studentsCount, lettersCount] = await Promise.all([
+    getDoc(userRef),
+    getCountFromServer(studentsRef(uid)),
+    getCountFromServer(lettersRef(uid)),
+  ]);
+
+  const stored = profileSnap.exists() ? profileSnap.data() : {};
+  const liveStudents = studentsCount.data().count;
+  const liveLetters = lettersCount.data().count;
+  const storedStudents = stored.totalStudentsCreated || 0;
+  const storedLetters = stored.totalLettersGenerated || 0;
+
+  const fixes = {};
+  if (liveStudents > storedStudents) fixes.totalStudentsCreated = liveStudents;
+  if (liveLetters > storedLetters) fixes.totalLettersGenerated = liveLetters;
+  if (Object.keys(fixes).length > 0) {
+    await updateDoc(userRef, fixes);
+  }
+
+  return {
+    totalStudentsCreated: Math.max(liveStudents, storedStudents),
+    totalLettersGenerated: Math.max(liveLetters, storedLetters),
+  };
 }

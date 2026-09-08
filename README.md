@@ -18,6 +18,8 @@ Template assembly logic (no AI) lives in `src/lib/templates.js`: each purpose ma
 
 New users default to `plan: 'free'`, capped at 3 students and 3 letters **ever** (`src/lib/limits.js`). This is enforced against lifetime counters — `users/{uid}.totalStudentsCreated` / `totalLettersGenerated` — which `createStudent`/`createLetter` increment atomically (same Firestore batch as the create) and which deleting a student or letter never decrements. That's deliberate: deleting tidies up the dashboard but does not free up a new slot. Hitting either cap replaces the New Student / New Letter Request form with an upgrade notice pointing to a manual-upgrade email (`src/lib/config.js`, `UPGRADE_EMAIL`). There's no payment integration — flip `plan` to `'paid'` by hand in the Firestore console to lift the limits for a user.
 
+Before either gate is evaluated, `reconcileUsageCounters()` (`src/lib/firestore.js`) recomputes both counters from a live `getCountFromServer` aggregation over the real subcollections and repairs the stored value if it's behind — this only ever moves a counter up, never down, so it can't undo the delete-doesn't-restore-quota rule above. It exists because a counter can legitimately end up behind the true count (most notably: any student/letter created before this counter field existed never incremented anything), and self-healing on every visit means that can't stay wrong.
+
 ## Local setup
 
 1. **Create a Firebase project** at [console.firebase.google.com](https://console.firebase.google.com).
@@ -65,7 +67,7 @@ firebase deploy --only hosting
 
 ## End-to-end testing (Firebase emulators + Playwright)
 
-`e2e-test.mjs` and `e2e-test-quota.mjs` drive the real app in a real browser against the local Firebase emulator suite — no cloud project or credentials needed. Useful for verifying anything touching Auth/Firestore state (e.g. the student selector, freemium limits) actually works, not just that the code reads correctly.
+`e2e-test.mjs`, `e2e-test-quota.mjs`, and `e2e-test-reconcile.mjs` drive the real app in a real browser against the local Firebase emulator suite — no cloud project or credentials needed. Useful for verifying anything touching Auth/Firestore state (e.g. the student selector, freemium limits) actually works, not just that the code reads correctly.
 
 ```sh
 # terminal 1 — emulators (Auth :9099, Firestore :8080, UI :4000)
@@ -75,8 +77,10 @@ npx firebase-tools emulators:start --project demo-letterflow
 echo "VITE_USE_EMULATORS=true" > .env.local && npm run dev -- --port 5175
 
 # terminal 3
-node e2e-test.mjs        # student selector + draft-content correctness
-node e2e-test-quota.mjs  # free-plan lifetime limit + anti-bypass-by-delete
+node e2e-test.mjs            # student selector + draft-content correctness
+node e2e-test-quota.mjs      # free-plan lifetime limit + anti-bypass-by-delete
+node e2e-test-reconcile.mjs  # corrupts the counter directly in Firestore, then
+                              # confirms reconcileUsageCounters() self-heals it
 ```
 
 Screenshots are written to `/tmp/e2e-shots/`. `VITE_USE_EMULATORS` only takes effect when explicitly set to `'true'` — it never activates in a normal `npm run build`/production deploy.

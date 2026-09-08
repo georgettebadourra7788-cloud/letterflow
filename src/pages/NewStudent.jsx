@@ -4,7 +4,14 @@ import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import UpgradeNotice from '../components/UpgradeNotice';
 import { useAuth } from '../context/AuthContext';
-import { createStudent, deleteStudent, getStudent, updateStudent, watchProfile } from '../lib/firestore';
+import {
+  createStudent,
+  deleteStudent,
+  getStudent,
+  reconcileUsageCounters,
+  updateStudent,
+  watchProfile,
+} from '../lib/firestore';
 import { titleCaseName } from '../lib/textFormat';
 import { isAtLifetimeLimit } from '../lib/limits';
 import { GENDERS } from '../lib/pronouns';
@@ -32,6 +39,7 @@ export default function NewStudent() {
 
   // Free-plan lifetime limit check — only relevant when creating a new student.
   const [profile, setProfile] = useState(null);
+  const [reconciled, setReconciled] = useState(false);
 
   useEffect(() => {
     if (!isEditing || !user) return;
@@ -43,10 +51,18 @@ export default function NewStudent() {
 
   useEffect(() => {
     if (isEditing || !user) return;
+    // Repair the stored counter against the real document count (e.g. any
+    // student created before this counter existed) before we ever decide
+    // whether the free-plan limit applies.
+    reconcileUsageCounters(user.uid).finally(() => setReconciled(true));
+  }, [isEditing, user]);
+
+  useEffect(() => {
+    if (isEditing || !user) return;
     return watchProfile(user.uid, setProfile);
   }, [isEditing, user]);
 
-  const limitCheckLoading = !isEditing && profile === null;
+  const limitCheckLoading = !isEditing && (profile === null || !reconciled);
   const limitReached = !isEditing && !limitCheckLoading && isAtLifetimeLimit(profile, 'students');
 
   function updateField(field, value) {

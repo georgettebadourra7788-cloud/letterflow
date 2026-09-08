@@ -4,7 +4,7 @@ import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import UpgradeNotice from '../components/UpgradeNotice';
 import { useAuth } from '../context/AuthContext';
-import { createLetter, watchProfile, watchStudents } from '../lib/firestore';
+import { createLetter, reconcileUsageCounters, watchProfile, watchStudents } from '../lib/firestore';
 import { assembleLetter, PURPOSES, TONES } from '../lib/templates';
 import { isAtLifetimeLimit } from '../lib/limits';
 
@@ -26,6 +26,15 @@ export default function NewLetterRequest() {
   const [creating, setCreating] = useState(false);
 
   const [profile, setProfile] = useState(null);
+  const [reconciled, setReconciled] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    // Repair the stored counter against the real letter count before we
+    // ever decide whether the free-plan limit applies — see the comment
+    // on reconcileUsageCounters for why this can legitimately be behind.
+    reconcileUsageCounters(user.uid).finally(() => setReconciled(true));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -49,7 +58,7 @@ export default function NewLetterRequest() {
   }, [user]);
 
   const selectedStudent = students.find((s) => s.id === studentId);
-  const limitCheckLoading = profile === null;
+  const limitCheckLoading = profile === null || !reconciled;
   const limitReached = !limitCheckLoading && isAtLifetimeLimit(profile, 'letters');
 
   async function handleGenerate() {
