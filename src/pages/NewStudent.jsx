@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Icon from '../components/Icon';
+import UpgradeNotice from '../components/UpgradeNotice';
 import { useAuth } from '../context/AuthContext';
-import { createStudent, deleteStudent, getStudent, updateStudent } from '../lib/firestore';
+import { createStudent, deleteStudent, getStudent, updateStudent, watchProfile, watchStudents } from '../lib/firestore';
 import { titleCaseName } from '../lib/textFormat';
+import { isAtMonthlyLimit } from '../lib/limits';
 
 const emptyStudent = {
   name: '',
@@ -26,6 +28,10 @@ export default function NewStudent() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
 
+  // Free-plan monthly limit check — only relevant when creating a new student.
+  const [profile, setProfile] = useState(null);
+  const [existingStudents, setExistingStudents] = useState(null);
+
   useEffect(() => {
     if (!isEditing || !user) return;
     getStudent(user.uid, studentId).then((data) => {
@@ -33,6 +39,19 @@ export default function NewStudent() {
       setLoading(false);
     });
   }, [isEditing, studentId, user]);
+
+  useEffect(() => {
+    if (isEditing || !user) return;
+    const unsubProfile = watchProfile(user.uid, setProfile);
+    const unsubStudents = watchStudents(user.uid, setExistingStudents);
+    return () => {
+      unsubProfile();
+      unsubStudents();
+    };
+  }, [isEditing, user]);
+
+  const limitCheckLoading = !isEditing && (profile === null || existingStudents === null);
+  const limitReached = !isEditing && !limitCheckLoading && isAtMonthlyLimit(profile, existingStudents, 'students');
 
   function updateField(field, value) {
     setStudent((prev) => ({ ...prev, [field]: value }));
@@ -72,10 +91,18 @@ export default function NewStudent() {
     navigate('/students');
   }
 
-  if (loading) {
+  if (loading || limitCheckLoading) {
     return (
       <Layout title="Student Dossier" backTo="/students" hideNav>
         <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>
+      </Layout>
+    );
+  }
+
+  if (limitReached) {
+    return (
+      <Layout title="Student Dossier" backTo="/students" hideNav>
+        <UpgradeNotice />
       </Layout>
     );
   }

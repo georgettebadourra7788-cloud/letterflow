@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Icon from '../components/Icon';
+import UpgradeNotice from '../components/UpgradeNotice';
 import { useAuth } from '../context/AuthContext';
-import { createLetter, watchStudents } from '../lib/firestore';
+import { createLetter, watchLetters, watchProfile, watchStudents } from '../lib/firestore';
 import { assembleLetter, PURPOSES, TONES } from '../lib/templates';
+import { isAtMonthlyLimit } from '../lib/limits';
 
 const PURPOSE_ICONS = {
   gradSchool: 'school',
@@ -23,6 +25,9 @@ export default function NewLetterRequest() {
   const [deadline, setDeadline] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const [profile, setProfile] = useState(null);
+  const [existingLetters, setExistingLetters] = useState(null);
+
   useEffect(() => {
     if (!user) return;
     return watchStudents(user.uid, (list) => {
@@ -32,7 +37,19 @@ export default function NewLetterRequest() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const unsubProfile = watchProfile(user.uid, setProfile);
+    const unsubLetters = watchLetters(user.uid, setExistingLetters);
+    return () => {
+      unsubProfile();
+      unsubLetters();
+    };
+  }, [user]);
+
   const selectedStudent = students.find((s) => s.id === studentId);
+  const limitCheckLoading = profile === null || existingLetters === null;
+  const limitReached = !limitCheckLoading && isAtMonthlyLimit(profile, existingLetters, 'letters');
 
   async function handleGenerate() {
     if (!selectedStudent) return;
@@ -51,6 +68,22 @@ export default function NewLetterRequest() {
     } finally {
       setCreating(false);
     }
+  }
+
+  if (limitCheckLoading) {
+    return (
+      <Layout title="New Letter Request" backTo="/dashboard" hideNav>
+        <p className="font-body-md text-body-md text-on-surface-variant">Loading…</p>
+      </Layout>
+    );
+  }
+
+  if (limitReached) {
+    return (
+      <Layout title="New Letter Request" backTo="/dashboard" hideNav>
+        <UpgradeNotice />
+      </Layout>
+    );
   }
 
   if (students.length === 0) {

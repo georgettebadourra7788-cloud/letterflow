@@ -33,6 +33,7 @@ export function AuthProvider({ children }) {
       title: '',
       letterheadText: '',
       signatureName: name,
+      plan: 'free',
       createdAt: serverTimestamp(),
     });
     return credential.user;

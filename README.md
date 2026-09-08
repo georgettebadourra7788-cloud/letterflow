@@ -6,13 +6,17 @@ Stack: React + Vite, Firebase (Auth + Firestore + Hosting), Tailwind CSS.
 
 ## Data model
 
-- `users/{uid}` — faculty profile: `name`, `email`, `institution`, `title`, `letterheadText`, `signatureName`
+- `users/{uid}` — faculty profile: `name`, `email`, `institution`, `title`, `letterheadText`, `signatureName`, `plan` (`free` | `paid`, defaults to `free`)
 - `users/{uid}/students/{studentId}` — `name`, `program`, `grade`, `relationship`, `achievements[]`, `notes`, `createdAt`
 - `users/{uid}/letters/{letterId}` — `studentId`, `purpose` (`gradSchool` | `job` | `scholarship` | `visa`), `tone` (`formal` | `warm` | `concise`), `deadline`, `status` (`draft` | `sent` | `submitted`), `draftText`, `createdAt`, `updatedAt`
 
 Every subcollection is scoped under the faculty member's own `uid`; Firestore rules (`firestore.rules`) only allow a signed-in user to read/write their own documents.
 
 Template assembly logic (no AI) lives in `src/lib/templates.js`: each purpose maps to an ordered list of paragraph blocks, and tone swaps the opening/closing phrasing.
+
+## Freemium plan
+
+New users default to `plan: 'free'`, capped at 3 students and 3 letters created per calendar month (`src/lib/limits.js`). Hitting either cap replaces the New Student / New Letter Request form with an upgrade notice pointing to a manual-upgrade email (`src/lib/config.js`, `UPGRADE_EMAIL`). There's no payment integration — flip `plan` to `'paid'` by hand in the Firestore console to lift the limits for a user.
 
 ## Local setup
 

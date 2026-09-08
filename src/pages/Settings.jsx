@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { saveProfile, watchProfile } from '../lib/firestore';
+import { UPGRADE_EMAIL, UPGRADE_MAILTO } from '../lib/config';
 
 const emptyProfile = {
   name: '',
@@ -11,6 +12,7 @@ const emptyProfile = {
   title: '',
   letterheadText: '',
   signatureName: '',
+  plan: 'free',
 };
 
 export default function Settings() {
@@ -166,6 +168,41 @@ export default function Settings() {
               className="w-full h-[42px] px-3 font-body-md text-body-md text-on-surface bg-surface-container-low rounded-lg focus:outline-none focus:bg-surface-container transition-colors"
             />
           </div>
+        </div>
+
+        <div className="bg-surface-container-lowest rounded-xl p-card-pad shadow-sm flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <Icon name="workspace_premium" className="text-[20px] text-secondary" />
+            <h3 className="font-headline-sm text-headline-sm text-on-surface">Plan</h3>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-surface-container-low rounded-xl">
+            <div className="flex flex-col">
+              <span className="font-title-md text-title-md text-on-surface">
+                {profile.plan === 'paid' ? 'LetterFlow Pro' : 'Free plan'}
+              </span>
+              <span className="font-body-sm text-body-sm text-on-surface-variant">
+                {profile.plan === 'paid'
+                  ? 'Unlimited students & letters, custom letterhead.'
+                  : 'Up to 3 students and 3 letters per calendar month.'}
+              </span>
+            </div>
+            <span
+              className={`px-2.5 py-1 rounded-full font-label-sm text-label-sm ${
+                profile.plan === 'paid' ? 'bg-secondary text-on-secondary' : 'bg-surface-container text-on-surface-variant'
+              }`}
+            >
+              {profile.plan === 'paid' ? 'Pro' : 'Free'}
+            </span>
+          </div>
+          {profile.plan !== 'paid' && (
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Upgrade to LetterFlow Pro — unlimited students &amp; letters, custom letterhead — $40/year. Email{' '}
+              <a href={UPGRADE_MAILTO} className="text-secondary hover:underline">
+                {UPGRADE_EMAIL}
+              </a>{' '}
+              to upgrade.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
