@@ -21,7 +21,7 @@ export const TONES = [
 export const toneVariants = {
   formal: {
     opening: (s) =>
-      `I am writing to provide my strongest recommendation for ${s.name}, whom I have had the privilege of ${s.relationship}.`,
+      `I am writing to provide my strongest recommendation for ${s.name}, whom I have had the privilege of knowing as ${s.relationship}.`,
     closing: (s) =>
       `Should you require any further information regarding ${s.name}'s qualifications, please do not hesitate to contact me. I recommend ${s.name} without reservation.`,
   },
@@ -45,16 +45,13 @@ function achievementsList(s) {
 const blocks = {
   opening: (s, tone) => toneVariants[tone].opening(s),
 
-  // The opening (via toneVariants) already states who the student is and
-  // the nature of the relationship — this block adds new detail instead of
-  // repeating "I have known X as Y": the coursework/program context, the
-  // observation period, and (if on file) the grade record.
+  // The opening already states the relationship/duration ONCE — this block
+  // must not restate "as [relationship]" at all. It only adds observation
+  // context: the course/program and (if on file) the grade record.
   relationship: (s) => {
-    const courseContext = s.program
-      ? `Over that time, I observed ${s.name}'s work closely in ${s.program}, which gave me direct insight into ${s.pronouns.possessive} abilities both in and outside the classroom.`
-      : `Over that time, I observed ${s.name}'s work closely, which gave me direct insight into ${s.pronouns.possessive} abilities.`;
-    const gradeLine = s.grade ? ` ${s.name} maintained a grade record of ${s.grade} throughout this period.` : '';
-    return `${courseContext}${gradeLine}`;
+    const courseClause = s.program ? ` in ${s.program}` : '';
+    const gradeClause = s.grade ? `, where ${s.pronouns.subject} maintained a grade record of ${s.grade}` : '';
+    return `I have had ample opportunity to observe ${s.name}'s work${courseClause}${gradeClause}.`;
   },
 
   academicPotential: (s) =>

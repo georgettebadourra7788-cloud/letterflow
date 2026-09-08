@@ -32,9 +32,16 @@ export default function NewLetterRequest() {
     if (!user) return;
     return watchStudents(user.uid, (list) => {
       setStudents(list);
-      if (!studentId && list.length > 0) setStudentId(list[0].id);
+      // Functional update so this reads the *current* selection instead of
+      // the studentId captured when this effect was created — Firestore's
+      // onSnapshot fires more than once (cache, then server, then any
+      // reconnect), and with a stale closure each fire was silently
+      // resetting the user's picked student back to list[0].
+      setStudentId((prev) => {
+        if (prev && list.some((s) => s.id === prev)) return prev;
+        return list.length > 0 ? list[0].id : '';
+      });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
