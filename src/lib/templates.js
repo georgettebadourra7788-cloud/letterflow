@@ -44,9 +44,16 @@ function achievementsList(s) {
 const blocks = {
   opening: (s, tone) => toneVariants[tone].opening(s),
 
+  // The opening (via toneVariants) already states who the student is and
+  // the nature of the relationship — this block adds new detail instead of
+  // repeating "I have known X as Y": the coursework/program context, the
+  // observation period, and (if on file) the grade record.
   relationship: (s) => {
-    const gradeLine = s.grade ? ` ${s.name} has maintained a grade record of ${s.grade}.` : '';
-    return `I have known ${s.name} as ${s.relationship}, and have had ample opportunity to observe their work in ${s.program || 'their program'}.${gradeLine}`;
+    const courseContext = s.program
+      ? `Over that time, I observed ${s.name}'s work closely in ${s.program}, which gave me direct insight into their abilities both in and outside the classroom.`
+      : `Over that time, I observed ${s.name}'s work closely, which gave me direct insight into their abilities.`;
+    const gradeLine = s.grade ? ` ${s.name} maintained a grade record of ${s.grade} throughout this period.` : '';
+    return `${courseContext}${gradeLine}`;
   },
 
   academicPotential: (s) =>

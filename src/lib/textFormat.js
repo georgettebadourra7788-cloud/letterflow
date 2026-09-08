@@ -28,32 +28,48 @@ function pluralizeWord(word) {
   return `${word}s`;
 }
 
-function singularizeWord(word) {
-  if (/ies$/i.test(word)) return `${word.slice(0, -3)}y`;
-  if (/(sses|shes|ches|xes|zes)$/i.test(word)) return word.slice(0, -2);
-  if (/s$/i.test(word) && !/ss$/i.test(word)) return word.slice(0, -1);
-  return word;
-}
+// Only these nouns get their plurality corrected. Matching *any* word after
+// a number (the original approach) also corrupted unrelated text — e.g.
+// "GPA of 3.7/4 across 2 semester" became "GPA of 3.7/4 acrosses 2
+// semesters", mangling "across" into "acrosses". Restricting to a whitelist
+// of countable nouns that actually show up in relationship/duration text
+// keeps the fix targeted and leaves everything else (including grade
+// fractions like "3.7/4", which this function never touches) untouched.
+const COUNTABLE_NOUNS = [
+  'semester',
+  'year',
+  'month',
+  'week',
+  'day',
+  'hour',
+  'course',
+  'class',
+  'credit',
+  'unit',
+  'term',
+  'quarter',
+  'paper',
+  'project',
+  'publication',
+  'presentation',
+  'award',
+  'cohort',
+  'session',
+  'student',
+];
 
-// Finds "<number> <noun>" pairs (e.g. "3 semester", "1 semesters") and
-// corrects the noun's plurality to agree with the number, so lecturer
+const COUNTABLE_NOUN_PATTERN = new RegExp(`\\b(\\d+)(\\s+)(${COUNTABLE_NOUNS.join('|')})s?\\b`, 'gi');
+
+// Finds "<number> <countable noun>" pairs (e.g. "3 semester", "1 semesters")
+// and corrects the noun's plurality to agree with the number, so lecturer
 // typos like "instructor for 3 semester" render as "3 semesters" and
 // "1 semesters" renders as "1 semester".
 export function fixNumberAgreement(text) {
   if (!text) return text;
-  return text.replace(/\b(\d+)(\s+)([A-Za-z]+)\b/g, (match, numStr, space, word) => {
+  return text.replace(COUNTABLE_NOUN_PATTERN, (match, numStr, space, noun) => {
     const num = parseInt(numStr, 10);
     if (Number.isNaN(num)) return match;
-
-    const shouldBePlural = num !== 1;
-    const isCurrentlyPlural = /s$/i.test(word) && !/ss$/i.test(word);
-
-    if (shouldBePlural && !isCurrentlyPlural) {
-      return `${numStr}${space}${pluralizeWord(word)}`;
-    }
-    if (!shouldBePlural && isCurrentlyPlural) {
-      return `${numStr}${space}${singularizeWord(word)}`;
-    }
-    return match;
+    const correctedNoun = num === 1 ? noun : pluralizeWord(noun);
+    return `${numStr}${space}${correctedNoun}`;
   });
 }
