@@ -2,6 +2,8 @@
 // No AI involved — each purpose maps to an ordered list of paragraph
 // blocks, and each block is a pure function of the student (and tone).
 
+import { fixNumberAgreement, titleCaseName } from './textFormat';
+
 export const PURPOSES = [
   { value: 'gradSchool', label: 'Grad School' },
   { value: 'job', label: 'Job / Fellowship' },
@@ -73,10 +75,23 @@ export const purposeTemplates = {
   visa: ['opening', 'relationship', 'durationVerification', 'strengths', 'notes', 'closing'],
 };
 
+// Safeguards the student's name and relationship text right before assembly,
+// so every block (including the tone-specific opening/closing) sees the
+// normalized values — this is a fallback in case a student record was
+// created before the intake form started title-casing names.
+function normalizeForTemplate(student) {
+  return {
+    ...student,
+    name: titleCaseName(student.name),
+    relationship: fixNumberAgreement(student.relationship),
+  };
+}
+
 export function assembleLetter(student, purpose, tone) {
+  const normalizedStudent = normalizeForTemplate(student);
   const order = purposeTemplates[purpose] || purposeTemplates.gradSchool;
   return order
-    .map((key) => blocks[key](student, tone))
+    .map((key) => blocks[key](normalizedStudent, tone))
     .filter((paragraph) => paragraph && paragraph.trim().length > 0)
     .join('\n\n');
 }

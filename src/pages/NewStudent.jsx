@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { createStudent, deleteStudent, getStudent, updateStudent } from '../lib/firestore';
+import { titleCaseName } from '../lib/textFormat';
 
 const emptyStudent = {
   name: '',
@@ -53,10 +54,11 @@ export default function NewStudent() {
     if (!student.name.trim()) return;
     setSaving(true);
     try {
+      const payload = { ...student, name: titleCaseName(student.name.trim()) };
       if (isEditing) {
-        await updateStudent(user.uid, studentId, student);
+        await updateStudent(user.uid, studentId, payload);
       } else {
-        await createStudent(user.uid, student);
+        await createStudent(user.uid, payload);
       }
       navigate('/students');
     } finally {
